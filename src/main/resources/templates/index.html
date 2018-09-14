@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>WebLog</title>
+
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	<script>
+		var intervalReadWebLog;
+
+		function remote(config) {
+			$.ajax(config.url, config);
+		}
+
+		function initWebLog() {
+			$('button').prop("disabled", true);
+			remote({
+				url: 'log/startWebLog',
+				method: 'post',
+				timeout: 0,
+				beforeSend: function (xhr) {
+					intervalReadWebLog = setInterval(function () {
+						readWebLog();
+					}, 1000);
+				},
+				complete: function () {
+					setTimeout(function () {
+						readWebLogComplete();
+					}, 2000);
+				}
+			});
+		}
+
+		function readWebLogComplete() {
+			clearInterval(intervalReadWebLog);
+			remote({
+				url: 'log/endWebLog',
+				method: 'get',
+				timeout: 0,
+				success: function (data, textStatus, jqXHR) {
+					// end web log can return last lines not yet readed
+					var $weblog = $("#weblog");
+					var result = JSON.parse(data);
+					if (result.code === 0) {
+						var messages = result.content;
+						for (var i = 0; i < messages.length; i++) {
+							$weblog.append('<span>' + messages[i] + '</span><br/>');
+							$weblog.scrollTop($weblog.prop('scrollHeight'));
+						}
+					} else {
+						$weblog.append('<span style="color: red">' + result.message + '</span><br/>');
+					}
+				},
+				complete: function () {
+					$("#weblog").append('<span>--- END ---</span><br/>');
+					$('button').prop("disabled", false);
+				}
+			});
+		}
+
+		function readWebLog() {
+			remote({
+				url: 'log/readWebLog',
+				method: 'get',
+				timeout: 0,
+				success: function (data, textStatus, jqXHR) {
+					var $weblog = $("#weblog");
+					var result = JSON.parse(data);
+					if (result.code === 0) {
+						var messages = result.content;
+						for (var i = 0; i < messages.length; i++) {
+							$weblog.append('<span>' + messages[i] + '</span><br/>');
+							$weblog.scrollTop($weblog.prop('scrollHeight'));
+						}
+					} else {
+						$weblog.append('<span style="color: red">' + result.message + '</span><br/>');
+					}
+				}
+			});
+		}
+
+	</script>
+
+	<style>
+		#weblog {
+			width: 90%;
+			margin: 2vw 5%;
+			display: inline-block;
+			height: 300px;
+			vertical-align: top;
+			-moz-appearance: textfield-multiline;
+			-webkit-appearance: textarea;
+			border: 1px solid gray;
+			font: medium -moz-fixed;
+			font: -webkit-small-control;
+			overflow: auto;
+			padding: 2px;
+			background-color: white;
+		}
+	</style>
+
+</head>
+<body>
+<div id="weblog"></div>
+<button onclick="initWebLog()" style="display: block;margin: 0 auto;">Init Log</button>
+</body>
+</html>
